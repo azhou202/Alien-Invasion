@@ -7,13 +7,13 @@ import functions as f
 from game_stats import GameStats
 from button import Button
 from scoreboard import Scoreboard
+from boss import Boss
 
 
 def run_game():
     # Initialize game, settings and create screen obj
     pg.init()
     fmt_settings = Settings()
-    # print("bullet wdith", fmt_settings.bullet_width)
     screen = pg.display.set_mode((fmt_settings.screen_width, fmt_settings.screen_height))
     pg.display.set_caption("Alien Invasion")
 
@@ -25,15 +25,17 @@ def run_game():
 
     # Make a group to store stars
     stars = Group()
-
     # Create star background
     f.create_stars(fmt_settings, screen, ship, stars, 8)
 
     # Make a group to store aliens
     aliens = Group()
 
+    # Make group to store perks
+    perks = Group()
+
     # Create alien fleet
-    f.create_fleet(fmt_settings, screen, ship, aliens)
+    f.create_fleet(fmt_settings, screen, ship, aliens, perks)
 
     # Make a group to store bullets in
     bullets = Group()
@@ -44,13 +46,13 @@ def run_game():
 
     #  Start main loop
     while True:
-        f.check_events(fmt_settings, screen, stats, sb, play_button, ship, aliens, bullets)
+        f.check_events(fmt_settings, screen, stats, sb, play_button, ship, aliens, bullets, perks)
 
         if stats.game_active:
             # Update various aspects of game
             ship.update()
             f.update_bullets(fmt_settings, screen, stats, sb, ship, aliens, bullets)
-            f.update_aliens(fmt_settings, screen, stats, sb, ship, aliens, bullets)
+            f.update_aliens(fmt_settings, screen, stats, sb, ship, aliens, bullets, perks)
 
         f.update_screen(fmt_settings, screen, stats, sb, ship, aliens, stars, bullets, play_button)
 

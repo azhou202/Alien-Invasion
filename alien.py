@@ -5,16 +5,22 @@ from pygame.sprite import Sprite
 class Alien(Sprite):
     """A class to represent a single alien in the fleet"""
 
-    def __init__(self, fmt_settings, screen):
+    def __init__(self, fmt_settings, screen, classification='default'):
         """Initialize the alien and set its starting position"""
 
         super().__init__()
         self.screen = screen
         self.fmt_settings = fmt_settings
 
-        # Load alien image, transform it, set rect attribute
-        self.prev_image = pg.image.load('images/alien_ship.bmp')
-        self.image = pg.transform.scale(self.prev_image, (45, 45))
+        # Load alien image, transform it, set rect attribute based on classification # TODO: using the img editor messed up the transparent pixels
+        self.classification = classification
+
+        prev_image = pg.image.load('images/alien_ship.bmp')  # default type which is regular alien
+        if self.classification == 'shield':
+            prev_image = pg.image.load('images/shield.bmp')
+        elif self.classification == 'super_bullet':
+            prev_image = pg.image.load('images/super_bullet.bmp')
+        self.image = pg.transform.scale(prev_image, (45, 45))
         self.rect = self.image.get_rect()
 
         # Start each new alien at top left of screen

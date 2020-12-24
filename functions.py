@@ -5,9 +5,10 @@ import pygame as pg
 from bullet import Bullet
 from alien import Alien
 from star import Star
+from boss import Boss
 
 
-def check_events(fmt_settings, screen, stats, sb, play_button, ship, aliens, bullets):
+def check_events(fmt_settings, screen, stats, sb, play_button, ship, aliens, bullets, perks):
     """Respond to keypresses and mouse movements"""
 
     for event in pg.event.get():
@@ -15,18 +16,39 @@ def check_events(fmt_settings, screen, stats, sb, play_button, ship, aliens, bul
         if event.type == pg.QUIT:
             sys.exit()
         elif event.type == pg.KEYDOWN:
-            check_keydown_events(event, fmt_settings, screen, stats, ship, bullets)
+            check_keydown_events(event, fmt_settings, screen, stats, sb, ship, aliens, bullets, perks)
         elif event.type == pg.KEYUP:
             check_keyup_events(event, ship)
         elif event.type == pg.MOUSEBUTTONDOWN:
             mouse_x, mouse_y = pg.mouse.get_pos()
-            check_play_button(fmt_settings, screen, stats, sb, play_button, ship, aliens, bullets, mouse_x, mouse_y)
+            check_play_button(fmt_settings, screen, stats, sb, ship, aliens, bullets, perks)
 
 
-def check_play_button(fmt_settings, screen, stats, sb, play_button, ship, aliens, bullets, mouse_x, mouse_y):
+def check_play_button(fmt_settings, screen, stats, sb, ship, aliens, bullets, perks):
     """Start a new game when player clicks Play"""
 
-    if play_button.rect.collidepoint(mouse_x, mouse_y):
+    # Reset game settings
+    fmt_settings.initialize_dynamic_settings()
+
+    # Reset game
+    stats.reset_stats()
+    stats.game_active = True
+
+    # Reset scoreboard
+    sb.prep_score()
+    sb.prep_high_score()
+    sb.prep_level()
+    sb.prep_ships()
+
+    aliens.empty()
+    bullets.empty()
+    perks.empty()
+
+    create_fleet(fmt_settings, screen, ship, aliens, perks)
+    ship.center_ship()
+
+    """
+        if play_button.rect.collidepoint(mouse_x, mouse_y):
         button_clicked = play_button.rect.collidepoint(mouse_x, mouse_y)
         if button_clicked and not stats.game_active:
             # Reset game settings
@@ -47,12 +69,15 @@ def check_play_button(fmt_settings, screen, stats, sb, play_button, ship, aliens
 
             aliens.empty()
             bullets.empty()
+            perks.empty()
 
-            create_fleet(fmt_settings, screen, ship, aliens)
+            create_fleet(fmt_settings, screen, ship, aliens, perks)
             ship.center_ship()
 
+    """
 
-def check_keydown_events(event, fmt_settings, screen, stats, ship, bullets):
+
+def check_keydown_events(event, fmt_settings, screen, stats, sb, ship, aliens, bullets, perks):
     """Respond to key presses"""
     # print("bullet wdith", fmt_settings.bullet_width)
     if event.key == pg.K_RIGHT:
@@ -69,6 +94,9 @@ def check_keydown_events(event, fmt_settings, screen, stats, ship, bullets):
             # write current high score to file
             reader.write((str(stats.high_score)))
         sys.exit()
+    elif event.key == pg.K_p:
+        if not stats.game_active:
+            check_play_button(fmt_settings, screen, stats, sb, ship, aliens, bullets, perks)
 
 
 def check_keyup_events(event, ship):
@@ -80,11 +108,12 @@ def check_keyup_events(event, ship):
         ship.moving_left = False
 
 
-def check_bullet_alien_collisions(fmt_settings, screen, stats, sb, ship, aliens, bullets):
+def check_bullet_alien_collisions(fmt_settings, screen, stats, sb, ship, aliens, bullets, perk_off=True):
     """Respond to bullet-alien collisions"""
 
     # Check for bullets that hit aliens; remove bullets and aliens that meet this criteria
-    collisions = pg.sprite.groupcollide(bullets, aliens, True, True)  # true and true tell if to delete b and alien
+    collisions = pg.sprite.groupcollide(bullets, aliens, perk_off, True)  # perk_off is for the super bullet perk,
+    # if super bullet active then perk_off is false
 
     if collisions:
         for aliens in collisions.values():
@@ -95,7 +124,7 @@ def check_bullet_alien_collisions(fmt_settings, screen, stats, sb, ship, aliens,
     if len(aliens) == 0:
         # Remove existing bullets, speed up game, and make new fleet (start new level)
         bullets.empty()
-        fmt_settings.increase_speed()
+        fmt_settings.increase_speed(stats)
 
         # Increase level
         stats.level += 1
@@ -120,13 +149,13 @@ def check_fleet_edges(fmt_settings, aliens):
             break
 
 
-def check_aliens_bottom(fmt_settings, screen, stats, sb, ship, aliens, bullets):
+def check_aliens_bottom(fmt_settings, screen, stats, sb, ship, aliens, bullets, perks):
     """Check if any aliens have reached the bottom of the screen"""
 
     screen_rect = screen.get_rect()
     for alien in aliens.sprites():
         if alien.rect.bottom >= screen_rect.bottom:
-            ship_hit(fmt_settings, screen, stats, sb, ship, aliens, bullets)
+            ship_hit(fmt_settings, screen, stats, sb, ship, aliens, bullets, perks)
             stats.game_active = False
             break
 
@@ -145,7 +174,7 @@ def update_bullets(fmt_settings, screen, stats, sb, ship, aliens, bullets):
     check_bullet_alien_collisions(fmt_settings, screen, stats, sb, ship, aliens, bullets)
 
 
-def update_aliens(fmt_settings, screen, stats, sb, ship, aliens, bullets):
+def update_aliens(fmt_settings, screen, stats, sb, ship, aliens, bullets, perks):
     """Check if the fleet is at and edge, then update positions of aliens in fleet"""
 
     check_fleet_edges(fmt_settings, aliens)
@@ -153,10 +182,10 @@ def update_aliens(fmt_settings, screen, stats, sb, ship, aliens, bullets):
 
     # Search for alien-ship collisions
     if pg.sprite.spritecollideany(ship, aliens):
-        ship_hit(fmt_settings, screen, stats, sb, ship, aliens, bullets)
+        ship_hit(fmt_settings, screen, stats, sb, ship, aliens, bullets, perks)
 
     # Look for aliens at screen bottom
-    check_aliens_bottom(fmt_settings, screen, stats, sb, ship, aliens, bullets)
+    check_aliens_bottom(fmt_settings, screen, stats, sb, ship, aliens, bullets, perks)
 
 
 def update_screen(fmt_settings, screen, stats, sb, ship, aliens, stars, bullets, play_button):
@@ -186,7 +215,6 @@ def fire_bullet(fmt_settings, screen, ship, bullets):
     # Create new bullet and add it to bullet group
     if len(bullets) < fmt_settings.bullets_allowed:
         new_bullet = Bullet(fmt_settings, screen, ship)
-        play_sound(new_bullet.firing_sound, 0.5)  # TODO: there is a bit of lag due to play sound and fire bullet
         bullets.add(new_bullet)
 
 
@@ -202,11 +230,12 @@ def play_sound(sound, duration):
     sound.stop()
 
 
-def create_fleet(fmt_settings, screen, ship, aliens):
+def create_fleet(fmt_settings, screen, ship, aliens, perks):
     """Create a fleet of aliens"""
 
     # Create alien and find number of aliens in a row
     # Space between each alien is equal to one alien width
+
     alien = Alien(fmt_settings, screen)
     num_aliens_x = get_num_objs_x(fmt_settings, alien.rect.width)
     num_rows = get_num_rows(fmt_settings, ship.rect.height, alien.rect.height)
@@ -214,7 +243,7 @@ def create_fleet(fmt_settings, screen, ship, aliens):
     # Create alien fleet
     for row_number in range(num_rows):
         for alien_number in range(num_aliens_x):
-            create_alien(fmt_settings, screen, aliens, alien_number, row_number)
+            create_alien(fmt_settings, screen, aliens, alien_number, row_number, perks)
 
 
 def create_stars(fmt_settings, screen, ship, stars, padding):
@@ -233,15 +262,29 @@ def create_stars(fmt_settings, screen, ship, stars, padding):
             create_star(fmt_settings, screen, stars, star_number, row_number, padding, x, y)
 
 
-def create_alien(fmt_settings, screen, aliens, alien_number, row_number):
+def create_alien(fmt_settings, screen, aliens, alien_number, row_number, perks):
     """Create an alien and put it in the row"""
 
-    alien = Alien(fmt_settings, screen)
+    seed = randint(1, 10)
+    classification = 'default'
+    if len(perks) < fmt_settings.perks_allowed:
+        if seed == 1:
+            classification = 'shield'
+            fmt_settings.perks_allowed += 1
+        elif seed == 3:
+            classification = 'super_bullet'
+            fmt_settings.perks_allowed += 1
+        elif seed == 7:
+            classification = 'extra_life'
+            fmt_settings.perks_allowed += 1
+
+    alien = Alien(fmt_settings, screen, classification)
     alien_width = alien.rect.width
     alien.x = alien_width + 2 * alien_width * alien_number
     alien.rect.x = alien.x
     alien.rect.y = alien.rect.height + 2 * alien.rect.height * row_number
     aliens.add(alien)
+    perks.add(alien)
 
 
 def create_star(fmt_settings, screen, stars, star_number, row_number, padding, x=0, y=0):
@@ -283,7 +326,7 @@ def change_fleet_direction(fmt_settings, aliens):
     fmt_settings.fleet_direction *= -1
 
 
-def ship_hit(fmt_settings, screen, stats, sb, ship, aliens, bullets):
+def ship_hit(fmt_settings, screen, stats, sb, ship, aliens, bullets, perks):
     """Respond to ship being hit by an alien"""
 
     play_sound(ship.death_sound, 0.5)
@@ -299,7 +342,7 @@ def ship_hit(fmt_settings, screen, stats, sb, ship, aliens, bullets):
         bullets.empty()
 
         # Create new fleet and center ship
-        create_fleet(fmt_settings, screen, ship, aliens)
+        create_fleet(fmt_settings, screen, ship, aliens, perks)
         ship.center_ship()
 
         # Pause
