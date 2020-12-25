@@ -87,7 +87,7 @@ def check_keydown_events(event, fmt_settings, screen, stats, sb, ship, aliens, b
         # Move ship left
         ship.moving_left = True
     elif event.key == pg.K_SPACE:
-        fire_bullet(fmt_settings, screen, ship, bullets)
+        fire_bullet(fmt_settings, screen, ship, stats, bullets)
     elif event.key == pg.K_ESCAPE:
         # save high score
         with open('_highscore.txt', 'w') as reader:
@@ -108,15 +108,25 @@ def check_keyup_events(event, ship):
         ship.moving_left = False
 
 
-def check_bullet_alien_collisions(fmt_settings, screen, stats, sb, ship, aliens, bullets, perk_off=True):
+def check_bullet_alien_collisions(fmt_settings, screen, stats, sb, ship, aliens, bullets, perks):
     """Respond to bullet-alien collisions"""
 
+    perk_off = True
+    if 'super_bullet' in stats.perks_active:
+        perk_off = False
+
     # Check for bullets that hit aliens; remove bullets and aliens that meet this criteria
-    collisions = pg.sprite.groupcollide(bullets, aliens, perk_off, True)  # perk_off is for the super bullet perk,
-    # if super bullet active then perk_off is false
+    collisions = pg.sprite.groupcollide(bullets, aliens, perk_off, True)  # perk is for the super bullet perk,
+    # if super bullet active then perk is true
 
     if collisions:
         for aliens in collisions.values():
+            # Check for perks
+            for alien in aliens:
+                if alien.classification != 'default':
+                    stats.perks_active.append(alien.classification)
+
+            # Modify Score
             stats.score += fmt_settings.alien_points * len(aliens)
             sb.prep_score()
         check_high_score(stats, sb)
@@ -130,7 +140,7 @@ def check_bullet_alien_collisions(fmt_settings, screen, stats, sb, ship, aliens,
         stats.level += 1
         sb.prep_level()
 
-        create_fleet(fmt_settings, screen, ship, aliens)
+        create_fleet(fmt_settings, screen, ship, aliens, perks)
 
 
 def check_high_score(stats, sb):
@@ -160,7 +170,7 @@ def check_aliens_bottom(fmt_settings, screen, stats, sb, ship, aliens, bullets, 
             break
 
 
-def update_bullets(fmt_settings, screen, stats, sb, ship, aliens, bullets):
+def update_bullets(fmt_settings, screen, stats, sb, ship, aliens, bullets, perks):
     """Update position of bullets and remove old ones"""
 
     # Update bullet position
@@ -171,7 +181,7 @@ def update_bullets(fmt_settings, screen, stats, sb, ship, aliens, bullets):
         if bullet.rect.bottom <= 0:
             bullets.remove(bullet)
 
-    check_bullet_alien_collisions(fmt_settings, screen, stats, sb, ship, aliens, bullets)
+    check_bullet_alien_collisions(fmt_settings, screen, stats, sb, ship, aliens, bullets, perks)
 
 
 def update_aliens(fmt_settings, screen, stats, sb, ship, aliens, bullets, perks):
@@ -209,13 +219,27 @@ def update_screen(fmt_settings, screen, stats, sb, ship, aliens, stars, bullets,
     pg.display.flip()
 
 
-def fire_bullet(fmt_settings, screen, ship, bullets):
+def fire_bullet(fmt_settings, screen, ship, stats, bullets):
     """Fire a bullet if under limit"""
 
+    # Check for perk
+    perk_active = 'super_bullet' in stats.perks_active
+    perk = False
+    loc = 0
+
+    if perk_active:
+        perk = True
+        loc = stats.perks_active.index('super_bullet')
+        
     # Create new bullet and add it to bullet group
     if len(bullets) < fmt_settings.bullets_allowed:
-        new_bullet = Bullet(fmt_settings, screen, ship)
+        new_bullet = Bullet(fmt_settings, screen, ship, perk)
         bullets.add(new_bullet)
+
+        # Get rid of the used perk
+        if perk_active & len(stats.perks_active) >= 1:
+            del stats.perks_active[loc]
+
 
 
 def play_sound(sound, duration):

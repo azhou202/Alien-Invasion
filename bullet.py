@@ -5,14 +5,21 @@ from pygame.sprite import Sprite
 class Bullet(Sprite):
     """A class that manages bullets fired from ship"""
 
-    def __init__(self, fmt_settings, screen, ship):
+    def __init__(self, fmt_settings, screen, ship, perk=False):
         """Create a bullet at the ship's current position"""
 
         super().__init__()
         self.screen = screen
 
         # Create a bullet rect at (0, 0) and set correct position
-        self.rect = pg.Rect(0, 0, fmt_settings.bullet_width, fmt_settings.bullet_height)
+        if perk:
+            width = fmt_settings.bullet_width + 120
+            height = fmt_settings.bullet_height - 8
+        else:
+            width = fmt_settings.bullet_width
+            height = fmt_settings.bullet_height
+
+        self.rect = pg.Rect(0, 0, width, height)
         self.rect.centerx = ship.rect.centerx
         self.rect.top = ship.rect.top
 

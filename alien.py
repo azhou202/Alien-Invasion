@@ -12,7 +12,7 @@ class Alien(Sprite):
         self.screen = screen
         self.fmt_settings = fmt_settings
 
-        # Load alien image, transform it, set rect attribute based on classification # TODO: using the img editor messed up the transparent pixels
+        # Load alien image, transform it, set rect attribute based on classification
         self.classification = classification
 
         prev_image = pg.image.load('images/alien_ship.bmp')  # default type which is regular alien
@@ -20,6 +20,8 @@ class Alien(Sprite):
             prev_image = pg.image.load('images/shield.bmp')
         elif self.classification == 'super_bullet':
             prev_image = pg.image.load('images/super_bullet.bmp')
+        elif self.classification == 'extra_life':
+            prev_image = pg.image.load('images/extra_life.bmp')
         self.image = pg.transform.scale(prev_image, (45, 45))
         self.rect = self.image.get_rect()
 

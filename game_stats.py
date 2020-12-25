@@ -21,3 +21,4 @@ class GameStats():
         self.ships_left = self.fmt_settings.ship_limit
         self.score = 0
         self.level = 1
+        self.perks_active = []
